@@ -1,0 +1,31 @@
+from pyrogram import Client
+from pytgcalls import PyTgCalls
+from pytgcalls.types import AudioQuality, MediaStream
+from database import get_all_sessions
+from config import API_ID, API_HASH
+
+active_calls = []
+
+async def join_all_vc(chat_id):
+    sessions = await get_all_sessions()
+    success_count = 0
+    
+    for session in sessions:
+        client = Client("vc_worker", api_id=API_ID, api_hash=API_HASH, session_string=session['session'], in_memory=True)
+        await client.start()
+        
+        call = PyTgCalls(client)
+        await call.start()
+        
+        # Requires a dummy audio file in the root directory
+        stream = MediaStream('dummy.mp3', audio_parameters=AudioQuality.STUDIO)
+        
+        try:
+            await call.join_group_call(chat_id, stream)
+            active_calls.append(call)
+            success_count += 1
+        except Exception as e:
+            print(f"Failed to join VC for {session['phone']}: {e}")
+            await client.stop()
+            
+    return success_count
