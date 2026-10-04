@@ -1,0 +1,36 @@
+from pyrogram import Client
+from database import add_session
+from config import API_ID, API_HASH
+
+# Stores temporary login sessions
+temp_clients = {}
+
+async def request_otp(phone_number: str):
+    client = Client(f"temp_{phone_number}", api_id=API_ID, api_hash=API_HASH, in_memory=True)
+    await client.connect()
+    try:
+        code = await client.send_code(phone_number)
+        temp_clients[phone_number] = {"client": client, "phone_code_hash": code.phone_code_hash}
+        return True, "OTP sent successfully."
+    except Exception as e:
+        await client.disconnect()
+        return False, str(e)
+
+async def submit_otp_and_save(phone_number: str, phone_code: str):
+    if phone_number not in temp_clients:
+        return False, "Session expired or not found."
+        
+    data = temp_clients.get(phone_number)
+    client = data["client"]
+    
+    try:
+        await client.sign_in(phone_number, data["phone_code_hash"], phone_code)
+        session_string = await client.export_session_string()
+        await add_session(phone_number, session_string)
+        return True, "Account added successfully!"
+    except Exception as e:
+        return False, str(e)
+    finally:
+        if client.is_connected:
+            await client.disconnect()
+        del temp_clients[phone_number]
