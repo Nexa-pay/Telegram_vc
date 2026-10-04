@@ -1,0 +1,6 @@
+pyrogram
+tgcrypto
+motor
+pytgcalls
+python-dotenv
+uvloop
