@@ -1,0 +1,11 @@
+import asyncio
+from pyrogram import Client, filters
+from config import DEFAULT_CHANNEL_ID
+from services.engagement import blast_reactions, blast_views
+
+def register_auto_watcher(bot: Client):
+    @bot.on_message(filters.chat(DEFAULT_CHANNEL_ID))
+    async def auto_engage(client, message):
+        # Automatically trigger views and reactions when a new post is detected
+        asyncio.create_task(blast_views(message.chat.id, message.id))
+        asyncio.create_task(blast_reactions(message.chat.id, message.id, emoji="🔥"))
