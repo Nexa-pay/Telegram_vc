@@ -1,0 +1,52 @@
+import asyncio
+from pyrogram import Client
+from pyrogram.raw.functions.messages import GetMessagesViews
+from database import get_all_sessions
+from config import API_ID, API_HASH
+
+async def send_reaction_task(session_string, chat_id, message_id, emoji):
+    client = Client("worker", api_id=API_ID, api_hash=API_HASH, session_string=session_string, in_memory=True)
+    await client.start()
+    try:
+        await client.send_reaction(chat_id=chat_id, message_id=message_id, emoji=emoji)
+    except Exception as e:
+        print(f"Reaction Error: {e}")
+    finally:
+        await client.stop()
+
+async def add_view_task(session_string, chat_id, message_id):
+    client = Client("worker", api_id=API_ID, api_hash=API_HASH, session_string=session_string, in_memory=True)
+    await client.start()
+    try:
+        peer = await client.resolve_peer(chat_id)
+        await client.invoke(GetMessagesViews(peer=peer, id=[message_id], increment=True))
+    except Exception as e:
+        print(f"View Error: {e}")
+    finally:
+        await client.stop()
+
+async def send_comment_task(session_string, chat_id, message_id, text):
+    client = Client("worker", api_id=API_ID, api_hash=API_HASH, session_string=session_string, in_memory=True)
+    await client.start()
+    try:
+        # Fetch the discussion message (the linked channel group)
+        await client.send_message(chat_id=chat_id, text=text, reply_to_message_id=message_id)
+    except Exception as e:
+        print(f"Comment Error: {e}")
+    finally:
+        await client.stop()
+
+async def blast_reactions(chat_id, message_id, emoji="🔥"):
+    sessions = await get_all_sessions()
+    tasks = [send_reaction_task(s['session'], chat_id, message_id, emoji) for s in sessions]
+    await asyncio.gather(*tasks)
+
+async def blast_views(chat_id, message_id):
+    sessions = await get_all_sessions()
+    tasks = [add_view_task(s['session'], chat_id, message_id) for s in sessions]
+    await asyncio.gather(*tasks)
+    
+async def blast_comments(chat_id, message_id, text="Great post!"):
+    sessions = await get_all_sessions()
+    tasks = [send_comment_task(s['session'], chat_id, message_id, text) for s in sessions]
+    await asyncio.gather(*tasks)
